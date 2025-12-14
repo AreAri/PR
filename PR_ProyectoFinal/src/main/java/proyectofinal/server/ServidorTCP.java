@@ -33,34 +33,23 @@ public class ServidorTCP {
         
         try {
             serverSocket = new ServerSocket(puerto);
-            
-            String ipServidor = InetAddress.getLocalHost().getHostAddress();
-        
-            System.out.println("SERVIDOR TCP ENEJECUTANDO");
-            System.out.println("Puerto: " + puerto);
-            System.out.println("Direccion IP: " + ipServidor);
-            System.out.println("Maximo de conexiones: " + maxConexiones);
-            System.out.println("Esperando clientes...");
+            System.out.println("Servidor TCP listo en puerto: " + puerto);
+            System.out.println("Esperando conexiones...");
             
             while (ejecutando) {
                 try {
                     Socket socketCliente = serverSocket.accept();
-                    if (ejecutando) {
-                        manejarNuevoCliente(socketCliente);
-                    }
-                    
-                } catch (SocketException e) {
-                    if (!ejecutando) {
-                        System.out.println("Servidor detenido normalmente");
-                    }
+                    System.out.println("Nueva conexion TCP aceptada");
+                    manejarNuevoCliente(socketCliente);
                 } catch (IOException e) {
-                    System.err.println("Error aceptando conexion: " + e.getMessage());
+                    if (ejecutando) {
+                        System.err.println("Error aceptando conexion: " + e.getMessage());
+                    }
                 }
             }
             
         } catch (IOException e) {
-            System.err.println("OK...No se pudo iniciar el servidor: " + e.getMessage());
-            detener();
+            System.err.println("No se pudo iniciar servidor TCP: " + e.getMessage());
         }
     }
     
