@@ -24,32 +24,25 @@ public class ServidorUDP {
         
         try {
             socketUDP = new DatagramSocket(puerto);
+            System.out.println("Servidor UDP listo en puerto: " + puerto);
             
-            System.out.println("SERVIDOR UDP INICIADO");
-            System.out.println("Puerto UDP: " + puerto);
-            System.out.println("Listo para recibir la info...");
-            
-            // Bucle principal para recibir la info en datagramas 
-            while (ejecutando) {
-                try {
-                    DatagramPacket paquete = recibirPaquete();
-                    
-                    if (paquete != null) {
-                        procesarPaquete(paquete);
+            new Thread(() -> {
+                while (ejecutando) {
+                    try {
+                        DatagramPacket paquete = recibirPaquete();
+                        if (paquete != null) {
+                            procesarPaquete(paquete);
+                        }
+                    } catch (Exception e) {
+                        if (ejecutando) {
+                            System.err.println("Error UDP: " + e.getMessage());
+                        }
                     }
-                    
-                } catch (SocketException e) {
-                    if (!ejecutando) {
-                        System.out.println("Servidor UDP detenido");
-                    }
-                } catch (IOException e) {
-                    System.err.println("Error recibiendo paquete UDP: " + e.getMessage());
                 }
-            }
+            }).start();
             
         } catch (SocketException e) {
-            System.err.println("ERROR: No se pudo iniciar servidor UDP: " + e.getMessage());
-            System.err.println("El puerto " + puerto + " puede estar en uso");
+            System.err.println("No se pudo iniciar servidor UDP: " + e.getMessage());
         }
     }
     
