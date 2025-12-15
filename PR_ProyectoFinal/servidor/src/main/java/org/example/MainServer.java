@@ -1,5 +1,6 @@
+//areari
+//aqui se ejecuta
 package org.example;
-
 import org.example.tcp.TCPServer;
 import org.example.udp.UDPServer;
 import org.example.rest.RestAPI;
@@ -19,7 +20,11 @@ public class MainServer {
 
         System.out.println("Iniciando servidor...");
 
-        // ================== RMI ==================
+        // CREAR ADMIN SI NO EXISTE ==================
+        System.out.println("Verificando usuario admin...");
+        UsuarioServiceImpl.crearAdminSiNoExiste();
+
+        // RMI ==================
         try {
             Registry registry = LocateRegistry.createRegistry(1099);
             UsuarioService servicio = new UsuarioServiceImpl();
@@ -29,34 +34,38 @@ public class MainServer {
             e.printStackTrace();
         }
 
-        // ================== TCP ==================
+        // TCP ==================
         TCPServer servidorTCP = new TCPServer(5000);
         new Thread(servidorTCP::start).start();
         System.out.println("Servidor TCP escuchando en puerto 5000");
 
-        // ================== UDP ==================
+        // UDP ==================
         UDPServer udpServer = new UDPServer(6000);
         new Thread(udpServer).start();
         System.out.println("Servidor UDP enviando notificaciones en puerto 6000");
 
-        // ================== SPARK ==================
+        // SPARK ==================
         port(8080);
 
-     
+        //  WEBSOCKET ==================
         webSocket("/ws", ClienteWebSocket.class);
 
-     
+        //  ARCHIVOS ESTATICOS ==================
         staticFiles.location("/public");
 
-      
+        //  REST API ==================
         RestAPI.start();
         WebController.start();
 
-       
+        //INICIAR SPARK ==================
         init();
 
+        System.out.println("Servidor iniciado correctamente");
         System.out.println("Web Admin disponible en http://localhost:8080");
         System.out.println("Cliente Web disponible en http://localhost:8080/cliente.html");
         System.out.println("WebSocket activo en ws://localhost:8080/ws");
+        System.out.println("RMI Registry en puerto 1099");
+        System.out.println("TCP Server en puerto 5000");
+        System.out.println("UDP Server en puerto 6000");
     }
 }
