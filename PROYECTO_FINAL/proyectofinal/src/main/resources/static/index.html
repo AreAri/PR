@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyecto Final PR - Sistema IoT</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-microchip"></i>
+                <h1>Proyecto Final PR - Sistema IoT</h1>
+            </div>
+            <div class="status">
+                <span id="api-status" class="status-indicator offline">API: Desconectado</span>
+                <span id="tcp-status" class="status-indicator offline">TCP: Desconectado</span>
+                <span id="udp-status" class="status-indicator offline">UDP: Desconectado</span>
+            </div>
+        </header>
+
+        <!-- Login Section (inicialmente visible) -->
+        <section id="login-section" class="section">
+            <div class="login-container">
+                <h2><i class="fas fa-sign-in-alt"></i> Iniciar Sesión</h2>
+                <div class="form-group">
+                    <label for="username"><i class="fas fa-user"></i> Usuario:</label>
+                    <input type="text" id="username" placeholder="admin" value="admin">
+                </div>
+                <div class="form-group">
+                    <label for="password"><i class="fas fa-lock"></i> Contraseña:</label>
+                    <input type="password" id="password" placeholder="admin123" value="admin123">
+                </div>
+                <button id="login-btn" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                </button>
+                <div id="login-message" class="message"></div>
+            </div>
+        </section>
+
+        <!-- Main Dashboard (inicialmente oculto) -->
+        <section id="dashboard" class="section" style="display: none;">
+            <!-- Navigation -->
+            <nav class="navbar">
+                <button class="nav-btn active" data-section="devices">
+                    <i class="fas fa-server"></i> Dispositivos
+                </button>
+                <button class="nav-btn" data-section="add-device">
+                    <i class="fas fa-plus-circle"></i> Agregar
+                </button>
+                <button class="nav-btn" data-section="sockets">
+                    <i class="fas fa-network-wired"></i> Sockets
+                </button>
+                <button class="nav-btn" data-section="stats">
+                    <i class="fas fa-chart-bar"></i> Estadísticas
+                </button>
+                <button id="logout-btn" class="nav-btn btn-logout">
+                    <i class="fas fa-sign-out-alt"></i> Salir
+                </button>
+            </nav>
+
+            <!-- Devices Section -->
+            <div id="devices-section" class="content-section active">
+                <h2><i class="fas fa-server"></i> Dispositivos IoT</h2>
+                <div class="controls">
+                    <button id="refresh-devices" class="btn btn-secondary">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                    <select id="filter-type" class="filter">
+                        <option value="">Todos los tipos</option>
+                        <option value="sensor">Sensor</option>
+                        <option value="actuador">Actuador</option>
+                        <option value="cámara">Cámara</option>
+                        <option value="termómetro">Termómetro</option>
+                        <option value="otros">Otros</option>
+                    </select>
+                    <select id="filter-status" class="filter">
+                        <option value="">Todos los estados</option>
+                        <option value="activo">Activo</option>
+                        <option value="inactivo">Inactivo</option>
+                        <option value="mantenimiento">Mantenimiento</option>
+                        <option value="error">Error</option>
+                    </select>
+                </div>
+                <div id="devices-list" class="devices-grid">
+                    <!-- Los dispositivos se cargarán aquí con JavaScript -->
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin"></i> Cargando dispositivos...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Device Section -->
+            <div id="add-device-section" class="content-section">
+                <h2><i class="fas fa-plus-circle"></i> Agregar Nuevo Dispositivo</h2>
+                <form id="add-device-form" class="form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="device-name"><i class="fas fa-tag"></i> Nombre:</label>
+                            <input type="text" id="device-name" required placeholder="Ej: Sensor Temperatura">
+                        </div>
+                        <div class="form-group">
+                            <label for="device-type"><i class="fas fa-cogs"></i> Tipo:</label>
+                            <select id="device-type" required>
+                                <option value="">Seleccionar tipo</option>
+                                <option value="sensor">Sensor</option>
+                                <option value="actuador">Actuador</option>
+                                <option value="cámara">Cámara</option>
+                                <option value="termómetro">Termómetro</option>
+                                <option value="otros">Otros</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="device-ip"><i class="fas fa-network-wired"></i> Dirección IP:</label>
+                            <input type="text" id="device-ip" required placeholder="Ej: 192.168.1.100">
+                        </div>
+                        <div class="form-group">
+                            <label for="device-port"><i class="fas fa-plug"></i> Puerto:</label>
+                            <input type="number" id="device-port" placeholder="8080" min="1" max="65535">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="device-location"><i class="fas fa-map-marker-alt"></i> Ubicación:</label>
+                            <input type="text" id="device-location" placeholder="Ej: Laboratorio A">
+                        </div>
+                        <div class="form-group">
+                            <label for="device-status"><i class="fas fa-power-off"></i> Estado:</label>
+                            <select id="device-status">
+                                <option value="inactivo">Inactivo</option>
+                                <option value="activo">Activo</option>
+                                <option value="mantenimiento">Mantenimiento</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="device-model"><i class="fas fa-microchip"></i> Modelo:</label>
+                        <input type="text" id="device-model" placeholder="Ej: T-1000">
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Guardar Dispositivo
+                        </button>
+                        <button type="reset" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Limpiar
+                        </button>
+                    </div>
+                    <div id="form-message" class="message"></div>
+                </form>
+            </div>
+
+            <!-- Sockets Section -->
+            <div id="sockets-section" class="content-section">
+                <h2><i class="fas fa-network-wired"></i> Comunicación por Sockets</h2>
+                
+                <div class="sockets-container">
+                    <!-- TCP Socket -->
+                    <div class="socket-card">
+                        <div class="socket-header">
+                            <h3><i class="fas fa-exchange-alt"></i> TCP Socket (Puerto 8081)</h3>
+                            <button id="tcp-connect-btn" class="btn btn-sm">
+                                <i class="fas fa-plug"></i> Conectar
+                            </button>
+                        </div>
+                        <div class="socket-body">
+                            <div class="form-group">
+                                <label>Comando TCP:</label>
+                                <input type="text" id="tcp-command" placeholder="INFO, STATUS, TIME, DISCONNECT">
+                                <button id="send-tcp-btn" class="btn btn-sm btn-secondary">
+                                    <i class="fas fa-paper-plane"></i> Enviar
+                                </button>
+                            </div>
+                            <div class="terminal" id="tcp-terminal">
+                                <div class="terminal-header">Respuestas TCP</div>
+                                <div class="terminal-content" id="tcp-messages">
+                                    <!-- Mensajes TCP aparecerán aquí -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- UDP Socket -->
+                    <div class="socket-card">
+                        <div class="socket-header">
+                            <h3><i class="fas fa-broadcast-tower"></i> UDP Socket (Puerto 8082)</h3>
+                            <button id="udp-test-btn" class="btn btn-sm">
+                                <i class="fas fa-bolt"></i> Probar
+                            </button>
+                        </div>
+                        <div class="socket-body">
+                            <div class="form-group">
+                                <label>Mensaje UDP:</label>
+                                <input type="text" id="udp-message" placeholder="PING, ALERTA:mensaje, STATUS:info">
+                                <button id="send-udp-btn" class="btn btn-sm btn-secondary">
+                                    <i class="fas fa-paper-plane"></i> Enviar
+                                </button>
+                            </div>
+                            <div class="terminal" id="udp-terminal">
+                                <div class="terminal-header">Respuestas UDP</div>
+                                <div class="terminal-content" id="udp-messages">
+                                    <!-- Mensajes UDP aparecerán aquí -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Section -->
+            <div id="stats-section" class="content-section">
+                <h2><i class="fas fa-chart-bar"></i> Estadísticas del Sistema</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Dispositivos Totales</h3>
+                            <div class="stat-value" id="total-devices">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon active">
+                            <i class="fas fa-play-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Dispositivos Activos</h3>
+                            <div class="stat-value" id="active-devices">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-stop-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Dispositivos Inactivos</h3>
+                            <div class="stat-value" id="inactive-devices">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Con Errores</h3>
+                            <div class="stat-value" id="error-devices">0</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>Dispositivos por Tipo</h3>
+                    <canvas id="type-chart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Proyecto Final PR - Sistema IoT Cliente-Servidor</p>
+            <p>Estudiante: [Tu Nombre] | Curso: Programación en Red | Universidad: [Tu Universidad]</p>
+            <p>Spring Boot API: <span id="api-url">https://localhost:8443/api</span></p>
+        </footer>
+    </div>
+
+    <!-- Modal para detalles del dispositivo -->
+    <div id="device-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title"></h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Contenido del modal se carga dinámicamente -->
+            </div>
+            <div class="modal-footer">
+                <button id="update-device-btn" class="btn btn-primary">Actualizar</button>
+                <button id="delete-device-btn" class="btn btn-danger">Eliminar</button>
+                <button id="connect-device-btn" class="btn btn-secondary">Conectar</button>
+                <button class="btn btn-secondary close-modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/sockets.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
