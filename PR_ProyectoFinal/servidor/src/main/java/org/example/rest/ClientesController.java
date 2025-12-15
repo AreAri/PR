@@ -1,14 +1,15 @@
+//areari
+//ok aqui basicamente es para poder ir manejando los clientes en la bd
+
 package org.example.rest;
-
 import org.example.db.DBConnection;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class ClientesController {
 
-    // ================= REGISTRO =================
+    // REGISTRO 
 
     public static void agregarCliente(String nombre) {
 
@@ -26,7 +27,7 @@ public class ClientesController {
             ResultSet rs = check.executeQuery();
 
             if (rs.next()) {
-                // Ya existe → no insertar
+                // Ya existe no insertamos
                 System.out.println("[DB] Cliente ya registrado: " + nombre);
                 return;
             }
@@ -44,7 +45,7 @@ public class ClientesController {
         }
     }
 
-    // ================= HTML =================
+    // HTML =================
 
     public static String getClientesHTML() {
 
