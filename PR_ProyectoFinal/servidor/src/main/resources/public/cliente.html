@@ -83,6 +83,15 @@
             font-size: 13px;
             margin-top: 10px;
         }
+         
+        .btn-registro {
+            background: #4CAF50;
+            margin-top: 5px;
+        }
+        
+        .btn-registro:hover {
+            background: #388E3C;
+        }
     </style>
 </head>
 
@@ -95,8 +104,9 @@
     <!-- LOGIN -->
     <div id="login">
         <input id="nombre" placeholder="Usuario">
-        <input id="password" type="password" placeholder="Contraseña">
-        <button onclick="conectar()">Entrar</button>
+        <input id="password" type="password" placeholder="Contra">
+        <button onclick="conectar('LOGIN')">Entrar</button>
+        <button onclick="conectar('REGISTER')" class="btn-registro">Registrar</button>
     </div>
 
     <!-- CHAT -->
@@ -115,69 +125,110 @@
 </div>
 
 <script>
-    let ws;
+let ws;
 
-    function conectar() {
+function conectar(tipo) {
+    const user = document.getElementById("nombre").value.trim();
+    const pass = document.getElementById("password").value.trim();
 
-        const user = document.getElementById("nombre").value.trim();
-        const pass = document.getElementById("password").value.trim();
+    if (!user || !pass) {
+        alert("Ingresa usuario y contra");
+        return;
+    }
 
-        if (!user || !pass) {
-            alert("Ingresa usuario y contraseña");
+    ws = new WebSocket("ws://localhost:8080/ws");
+
+    ws.onopen = () => {
+        console.log("Enviando " + tipo + ":", user);
+        ws.send(tipo + ":" + user + ":" + pass);
+    };
+
+    ws.onmessage = (event) => {
+        console.log("Mensaje del servidor:", event.data);
+
+        // LOGIN OK
+        if (event.data === "LOGIN_OK") {
+            document.getElementById("login").style.display = "none";
+            document.getElementById("chat").style.display = "block";
+            document.getElementById("mensaje").focus();
             return;
         }
 
-        ws = new WebSocket("ws://localhost:8080/ws");
+        // Error
+        if (event.data.startsWith("nel") || event.data.includes("incorrecto") || 
+            event.data.includes("invalido") || event.data.includes("obligatorios") ||
+            event.data.includes("conectado") || event.data.includes("Error")) {
+            alert(event.data);
+            ws.close();
+            return;
+        }
 
-        ws.onopen = () => {
-            ws.send("LOGIN:" + user + ":" + pass);
-            document.getElementById("login").style.display = "none";
-            document.getElementById("chat").style.display = "block";
-        };
+        // Lista clientes
+        if (event.data.startsWith("LISTA_CLIENTES:")) {
+            const lista = event.data.replace("LISTA_CLIENTES:", "").split(",");
+            document.getElementById("listaClientes").innerHTML = "";
 
-        ws.onmessage = (event) => {
+            lista.forEach(c => {
+                if (c.trim()) {
+                    const li = document.createElement("li");
+                    li.innerText = c;
+                    document.getElementById("listaClientes").appendChild(li);
+                }
+            });
+            return;
+        }
 
-            // ---- Lista de clientes ----
-            if (event.data.startsWith("LISTA_CLIENTES:")) {
-                const lista = event.data.replace("LISTA_CLIENTES:", "").split(",");
-                document.getElementById("listaClientes").innerHTML = "";
-
-                lista.forEach(c => {
-                    if (c.trim() !== "") {
-                        const li = document.createElement("li");
-                        li.innerText = c;
-                        document.getElementById("listaClientes").appendChild(li);
-                    }
-                });
-                return;
-            }
-
+        // Mensajes de conexión/desconexion
+        if (event.data.startsWith("ONLINE ") || event.data.startsWith("OFFLINE ")) {
             const li = document.createElement("li");
             li.innerText = event.data;
-
-            if (event.data.includes("UDP"))
-                li.classList.add("udp");
-            else if (event.data.includes("ONLINE") || event.data.includes("OFFLINE"))
-                li.classList.add("system");
-            else if (event.data.includes("nop"))
-                li.classList.add("error");
-
+            li.className = "system";
             document.getElementById("log").appendChild(li);
-        };
+            return;
+        }
 
-        ws.onclose = () => {
-            alert("Conexión cerrada");
-            location.reload();
-        };
+        // Mensajes normales
+        const li = document.createElement("li");
+        li.innerText = event.data;
+        document.getElementById("log").appendChild(li);
+    };
+
+    ws.onclose = () => {
+        console.log("Conexion cerrada");
+    };
+
+    ws.onerror = (error) => {
+        console.error("Error WebSocket:", error);
+        alert("Error de conexion con el servidor");
+    };
+}
+
+function enviar() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert("No estas conectado");
+        return;
     }
+    
+    const msg = document.getElementById("mensaje").value.trim();
+    if (!msg) return;
 
-    function enviar() {
-        const msg = document.getElementById("mensaje").value;
-        if (msg.trim() === "") return;
+    ws.send(msg);
+    document.getElementById("mensaje").value = "";
+    document.getElementById("mensaje").focus();
+}
 
-        ws.send(msg);
-        document.getElementById("mensaje").value = "";
+// Permitir enviar con Enter
+document.getElementById("mensaje")?.addEventListener("keypress", function(e) {
+    if (e.key === "Enter") {
+        enviar();
     }
+});
+
+document.getElementById("password")?.addEventListener("keypress", function(e) {
+    if (e.key === "Enter") {
+        conectar('LOGIN');
+    }
+});
 </script>
 
 </body>
