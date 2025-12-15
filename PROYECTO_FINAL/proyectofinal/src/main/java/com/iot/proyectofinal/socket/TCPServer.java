@@ -7,23 +7,25 @@ import jakarta.annotation.PreDestroy;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 public class TCPServer {
     
-    @Value("${app.tcp.port:8081}")
+    @Value("${app.socket.tcp.port:8881}")  
     private int tcpPort;
     
-    @Value("${app.max.connections:10}")
+    @Value("${app.socket.max.connections:50}")
     private int maxConnections;
     
     private ServerSocket serverSocket;
     private ExecutorService threadPool;
     private volatile boolean running = false;
+    private AtomicInteger connectionCount = new AtomicInteger(0);
+    private Map<String, Socket> activeClients = new ConcurrentHashMap<>();
     
-    // Inicializar servidor cuando Spring arranque
     @PostConstruct
     public void iniciar() {
         System.out.println("Iniciando servidor TCP en puerto " + tcpPort + "...");
@@ -33,55 +35,69 @@ public class TCPServer {
             threadPool = Executors.newFixedThreadPool(maxConnections);
             running = true;
             
-            // Iniciar hilo principal que acepta conexiones
             Thread serverThread = new Thread(this::aceptarConexiones);
+            serverThread.setDaemon(true);  // Para que no bloquee el cierre
             serverThread.start();
             
             System.out.println("Servidor TCP iniciado en puerto " + tcpPort);
+            
         } catch (IOException e) {
-            System.err.println("Error al iniciar servidor TCP: " + e.getMessage());
+            System.err.println("Error al iniciar servidor TCP en puerto " + tcpPort + ": " + e.getMessage());
+            System.err.println("   Probando puerto alternativo 8884...");
+            
+            // Intentar con puerto alternativo
+            try {
+                tcpPort = 8884;
+                serverSocket = new ServerSocket(tcpPort);
+                threadPool = Executors.newFixedThreadPool(maxConnections);
+                running = true;
+                
+                Thread altThread = new Thread(this::aceptarConexiones);
+                altThread.setDaemon(true);
+                altThread.start();
+                
+                System.out.println("Servidor TCP iniciado en puerto alternativo " + tcpPort);
+            } catch (IOException ex) {
+                System.err.println("No se pudo iniciar servidor TCP en ningún puerto");
+            }
         }
     }
     
-    // Metodo que acepta conexiones de clientes
     private void aceptarConexiones() {
         while (running) {
             try {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("Nueva conexion TCP desde: " + 
-                    clientSocket.getInetAddress().getHostAddress());
+                String clientIp = clientSocket.getInetAddress().getHostAddress();
+                int clientPort = clientSocket.getPort();
+                String clientKey = clientIp + ":" + clientPort;
                 
-                // Manejar cliente en un hilo separado
-                threadPool.execute(() -> manejarCliente(clientSocket));
+                System.out.println("Nueva conexión TCP desde: " + clientKey);
+                connectionCount.incrementAndGet();
+                activeClients.put(clientKey, clientSocket);
+                
+                threadPool.execute(() -> manejarCliente(clientSocket, clientKey));
                 
             } catch (IOException e) {
                 if (running) {
-                    System.err.println("Error aceptando conexion: " + e.getMessage());
+                    System.err.println("Error aceptando conexión: " + e.getMessage());
                 }
             }
         }
     }
     
-    // Metodo que maneja la comunicacion con un cliente
-    private void manejarCliente(Socket clientSocket) {
-        String clientIp = clientSocket.getInetAddress().getHostAddress();
-        
+    private void manejarCliente(Socket clientSocket, String clientKey) {
         try (BufferedReader entrada = new BufferedReader(
                 new InputStreamReader(clientSocket.getInputStream()));
              PrintWriter salida = new PrintWriter(clientSocket.getOutputStream(), true)) {
             
-            System.out.println("Manejando cliente TCP: " + clientIp);
-            
-            // Enviar mensaje de bienvenida
             salida.println("Bienvenido al servidor IoT - Proyecto Final PR");
-            salida.println("Comandos disponibles: INFO, STATUS, DISCONNECT");
+            salida.println("Comandos: INFO, STATUS, TIME, ECHO <texto>, DISCONNECT");
             
             String mensaje;
-            while ((mensaje = entrada.readLine()) != null) {
-                System.out.println("Cliente " + clientIp + " dice: " + mensaje);
-                
-                // Procesar comando
-                String respuesta = procesarComando(mensaje, clientIp);
+            while ((mensaje = entrada.readLine()) != null && running) {
+                System.out.println("Cliente " + clientKey + " dice: " + mensaje);
+            
+                String respuesta = procesarComando(mensaje, clientKey);
                 salida.println(respuesta);
                 
                 if (mensaje.equalsIgnoreCase("DISCONNECT")) {
@@ -90,40 +106,95 @@ public class TCPServer {
             }
             
         } catch (IOException e) {
-            System.err.println("Error con cliente " + clientIp + ": " + e.getMessage());
+            System.err.println("Error con cliente " + clientKey + ": " + e.getMessage());
         } finally {
             try {
                 clientSocket.close();
-                System.out.println("Cliente desconectado: " + clientIp);
+                activeClients.remove(clientKey);
+                connectionCount.decrementAndGet();
+                System.out.println("Cliente desconectado: " + clientKey);
             } catch (IOException e) {
                 System.err.println("Error cerrando socket: " + e.getMessage());
             }
         }
     }
     
-    // Procesar comandos recibidos
-    private String procesarComando(String comando, String clientIp) {
-        switch (comando.toUpperCase()) {
-            case "INFO":
-                return "Servidor IoT - Proyecto Final PR - Cliente: " + clientIp;
-            case "STATUS":
-                return "Estado: OK - Conexiones activas: " + 
-                    (threadPool != null ? "varias" : "0");
-            case "DISCONNECT":
-                return "Desconectando... Adios!";
-            case "TIME":
-                return "Hora del servidor: " + java.time.LocalTime.now();
-            default:
-                return "Comando no reconocido: " + comando + 
-                    " - Comandos validos: INFO, STATUS, TIME, DISCONNECT";
+    private String procesarComando(String comando, String clientKey) {
+        String upperComando = comando.toUpperCase();
+        
+        if (upperComando.equals("INFO")) {
+            return "Servidor IoT - Proyecto Final PR\nCliente: " + clientKey;
+        } else if (upperComando.equals("STATUS")) {
+            return "Estado: OK\nConexiones activas: " + connectionCount.get() + 
+                   "\nPuerto: " + tcpPort;
+        } else if (upperComando.equals("TIME")) {
+            return "Hora servidor: " + java.time.LocalTime.now() + 
+                   "\nFecha: " + java.time.LocalDate.now();
+        } else if (upperComando.startsWith("ECHO ")) {
+            return "Eco: " + comando.substring(5);
+        } else if (upperComando.equals("DISCONNECT")) {
+            return "Desconectando... ¡Adiós!";
+        } else {
+            return "Comando no reconocido: " + comando + 
+                   "\nComandos válidos: INFO, STATUS, TIME, ECHO <texto>, DISCONNECT";
         }
     }
     
-    // Detener servidor cuando Spring se detenga
+    // Método broadcast mejorado
+    public void broadcast(String mensaje) {
+        System.out.println("Broadcast enviado: " + mensaje);
+        
+        activeClients.forEach((clientKey, socket) -> {
+            if (socket != null && !socket.isClosed() && socket.isConnected()) {
+                try {
+                    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                    out.println("[BROADCAST] " + mensaje);
+                } catch (IOException e) {
+                    System.err.println("Error en broadcast a " + clientKey + ": " + e.getMessage());
+                }
+            }
+        });
+    }
+    
+    // Métodos getter
+    public int getPuerto() {
+        return tcpPort;
+    }
+    
+    public boolean estaCorriendo() {
+        return running && serverSocket != null && !serverSocket.isClosed();
+    }
+    
+    public Map<String, Object> getStats() {
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("running", running);
+        stats.put("port", tcpPort);
+        stats.put("activeConnections", connectionCount.get());
+        stats.put("maxConnections", maxConnections);
+        stats.put("connectedClients", new ArrayList<>(activeClients.keySet()));
+        return stats;
+    }
+    
+    public List<String> getConnectedClients() {
+        return new ArrayList<>(activeClients.keySet());
+    }
+    
     @PreDestroy
     public void detener() {
         System.out.println("Deteniendo servidor TCP...");
         running = false;
+        
+        // Cerrar todas las conexiones de clientes
+        activeClients.forEach((key, socket) -> {
+            try {
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
+            } catch (IOException e) {
+                System.err.println("Error cerrando socket de cliente " + key);
+            }
+        });
+        activeClients.clear();
         
         try {
             if (serverSocket != null && !serverSocket.isClosed()) {
@@ -135,18 +206,16 @@ public class TCPServer {
         
         if (threadPool != null) {
             threadPool.shutdown();
+            try {
+                if (!threadPool.awaitTermination(5, TimeUnit.SECONDS)) {
+                    threadPool.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                threadPool.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
         }
         
         System.out.println("Servidor TCP detenido");
-    }
-    
-    // Metodo para verificar si el servidor esta corriendo
-    public boolean estaCorriendo() {
-        return running;
-    }
-    
-    // Metodo para obtener el puerto
-    public int getPuerto() {
-        return tcpPort;
     }
 }
