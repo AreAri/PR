@@ -1,5 +1,7 @@
+//areari
+//como tal aqui se aplica UDP para enviar mensajes a un cliente 
+//igual se vio en clase por lo que en efecto es reciclado
 package org.example.udp;
-
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -34,7 +36,7 @@ public class UDPServer implements Runnable {
 
             socket.send(packet);
 
-            // REFLEJAR EN LA WEB
+            //con esto todo se dentro de la web
             org.example.ws.ClienteWebSocket.notificarUDP(mensaje);
 
             System.out.println("[UDP ENVIADO] " + mensaje);
@@ -46,7 +48,7 @@ public class UDPServer implements Runnable {
 
     @Override
     public void run() {
-        // No loop infinito necesario para el proyecto
+        // 
         while (true) {
             try {
                 Thread.sleep(10000);
