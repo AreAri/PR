@@ -12,14 +12,12 @@ import java.net.SocketException;
 @Component
 public class UDPServer {
     
-    @Value("${app.udp.port:8082}")
+    @Value("${app.socket.udp.port:8882}")  
     private int udpPort;
     
     private DatagramSocket socket;
     private volatile boolean running = false;
-    private Thread serverThread;
     
-    // Iniciar servidor UDP
     @PostConstruct
     public void iniciar() {
         System.out.println("Iniciando servidor UDP en puerto " + udpPort + "...");
@@ -28,16 +26,33 @@ public class UDPServer {
             socket = new DatagramSocket(udpPort);
             running = true;
             
-            serverThread = new Thread(this::escucharMensajes);
+            Thread serverThread = new Thread(this::escucharMensajes);
+            serverThread.setDaemon(true);  // Para que no bloquee el cierre
             serverThread.start();
             
             System.out.println("Servidor UDP iniciado en puerto " + udpPort);
+            
         } catch (SocketException e) {
-            System.err.println("Error al iniciar servidor UDP: " + e.getMessage());
+            System.err.println("Error al iniciar servidor UDP en puerto " + udpPort + ": " + e.getMessage());
+            System.err.println("   Probando puerto alternativo 8883...");
+            
+            // Intentar con puerto alternativo
+            try {
+                udpPort = 8883;
+                socket = new DatagramSocket(udpPort);
+                running = true;
+                
+                Thread altThread = new Thread(this::escucharMensajes);
+                altThread.setDaemon(true);
+                altThread.start();
+                
+                System.out.println("Servidor UDP iniciado en puerto alternativo " + udpPort);
+            } catch (SocketException ex) {
+                System.err.println("No se pudo iniciar servidor UDP en ningún puerto");
+            }
         }
     }
     
-    // Metodo que escucha mensajes UDP
     private void escucharMensajes() {
         byte[] buffer = new byte[1024];
         
@@ -48,23 +63,17 @@ public class UDPServer {
                 
                 String mensaje = new String(packet.getData(), 0, packet.getLength());
                 String clientIp = packet.getAddress().getHostAddress();
-                int clientPort = packet.getPort();
                 
-                System.out.println("Mensaje UDP de " + clientIp + ":" + clientPort + 
-                    " -> " + mensaje);
+                System.out.println("Mensaje UDP de " + clientIp + " -> " + mensaje);
                 
-                // Procesar mensaje
-                String respuesta = procesarMensajeUDP(mensaje);
-                
-                // Enviar respuesta si es necesario
-                if (respuesta != null && !respuesta.isEmpty()) {
-                    byte[] respuestaBytes = respuesta.getBytes();
-                    DatagramPacket respuestaPacket = new DatagramPacket(
-                        respuestaBytes, respuestaBytes.length,
-                        packet.getAddress(), packet.getPort()
-                    );
-                    socket.send(respuestaPacket);
-                }
+                // Responder al cliente
+                String respuesta = "UDP recibido: " + mensaje;
+                byte[] respBytes = respuesta.getBytes();
+                DatagramPacket respPacket = new DatagramPacket(
+                    respBytes, respBytes.length, 
+                    packet.getAddress(), packet.getPort()
+                );
+                socket.send(respPacket);
                 
             } catch (IOException e) {
                 if (running) {
@@ -74,24 +83,26 @@ public class UDPServer {
         }
     }
     
-    // Procesar mensajes UDP recibidos
-    private String procesarMensajeUDP(String mensaje) {
-        // Para notificaciones rapidas
-        if (mensaje.startsWith("ALERTA:")) {
-            System.out.println("ALERTA RECIBIDA: " + mensaje.substring(7));
-            return "ALERTA_ACK";
-        } else if (mensaje.startsWith("STATUS:")) {
-            System.out.println("STATUS UPDATE: " + mensaje.substring(7));
-            return "STATUS_OK";
-        } else if (mensaje.equals("PING")) {
-            return "PONG - Servidor UDP activo";
-        } else {
-            System.out.println("Mensaje UDP recibido: " + mensaje);
-            return "RECIBIDO: " + mensaje;
+    // Método para enviar mensaje UDP (para pruebas)
+    public void enviarMensaje(String ip, int puerto, String mensaje) throws IOException {
+        if (socket != null && !socket.isClosed()) {
+            byte[] data = mensaje.getBytes();
+            DatagramPacket packet = new DatagramPacket(
+                data, data.length, 
+                java.net.InetAddress.getByName(ip), puerto
+            );
+            socket.send(packet);
         }
     }
     
-    // Detener servidor UDP
+    public int getPuerto() {
+        return udpPort;
+    }
+    
+    public boolean estaCorriendo() {
+        return running && socket != null && !socket.isClosed();
+    }
+    
     @PreDestroy
     public void detener() {
         System.out.println("Deteniendo servidor UDP...");
@@ -101,39 +112,6 @@ public class UDPServer {
             socket.close();
         }
         
-        if (serverThread != null) {
-            try {
-                serverThread.join(2000); // Esperar a que termine
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        
         System.out.println("Servidor UDP detenido");
-    }
-    
-    // Enviar mensaje UDP (para broadcast o notificaciones)
-    public void enviarMensaje(String ip, int puerto, String mensaje) {
-        try (DatagramSocket tempSocket = new DatagramSocket()) {
-            byte[] data = mensaje.getBytes();
-            DatagramPacket packet = new DatagramPacket(
-                data, data.length,
-                java.net.InetAddress.getByName(ip), puerto
-            );
-            tempSocket.send(packet);
-            System.out.println("Mensaje UDP enviado a " + ip + ":" + puerto);
-        } catch (IOException e) {
-            System.err.println("Error enviando mensaje UDP: " + e.getMessage());
-        }
-    }
-    
-    // Verificar si esta corriendo
-    public boolean estaCorriendo() {
-        return running;
-    }
-    
-    // Obtener puerto
-    public int getPuerto() {
-        return udpPort;
     }
 }
