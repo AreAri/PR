@@ -1,5 +1,6 @@
+//AREARI
+//autenticamos el tcp 
 package org.example.tcp;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -15,7 +16,7 @@ public class ClientHandler implements Runnable {
     }
 
     @Override
-    public void run() {
+    public void run() {//empieza el hilo, esta vivo
         try (
             BufferedReader in = new BufferedReader(
                     new InputStreamReader(socket.getInputStream()));
