@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cliente Web</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .card {
+            background: white;
+            width: 420px;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        input, button {
+            width: 100%;
+            padding: 8px;
+            margin-top: 8px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #125aa0;
+        }
+
+        #chat {
+            display: none;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        li {
+            padding: 6px;
+            margin-bottom: 4px;
+            border-radius: 5px;
+            background: #eeeeee;
+            font-size: 14px;
+        }
+
+        .udp {
+            background: #fff3cd;
+            border-left: 5px solid #ff9800;
+        }
+
+        .system {
+            background: #e3f2fd;
+        }
+
+        .error {
+            background: #ffcdd2;
+        }
+
+        .clientes {
+            font-size: 13px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="card">
+
+    <h2>Cliente Web</h2>
+
+    <!-- LOGIN -->
+    <div id="login">
+        <input id="nombre" placeholder="Usuario">
+        <input id="password" type="password" placeholder="Contraseña">
+        <button onclick="conectar()">Entrar</button>
+    </div>
+
+    <!-- CHAT -->
+    <div id="chat">
+        <input id="mensaje" placeholder="Mensaje">
+        <button onclick="enviar()">Enviar</button>
+
+        <ul id="log"></ul>
+
+        <div class="clientes">
+            <strong>Clientes conectados:</strong>
+            <ul id="listaClientes"></ul>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let ws;
+
+    function conectar() {
+
+        const user = document.getElementById("nombre").value.trim();
+        const pass = document.getElementById("password").value.trim();
+
+        if (!user || !pass) {
+            alert("Ingresa usuario y contraseña");
+            return;
+        }
+
+        ws = new WebSocket("ws://localhost:8080/ws");
+
+        ws.onopen = () => {
+            ws.send("LOGIN:" + user + ":" + pass);
+            document.getElementById("login").style.display = "none";
+            document.getElementById("chat").style.display = "block";
+        };
+
+        ws.onmessage = (event) => {
+
+            // ---- Lista de clientes ----
+            if (event.data.startsWith("LISTA_CLIENTES:")) {
+                const lista = event.data.replace("LISTA_CLIENTES:", "").split(",");
+                document.getElementById("listaClientes").innerHTML = "";
+
+                lista.forEach(c => {
+                    if (c.trim() !== "") {
+                        const li = document.createElement("li");
+                        li.innerText = c;
+                        document.getElementById("listaClientes").appendChild(li);
+                    }
+                });
+                return;
+            }
+
+            const li = document.createElement("li");
+            li.innerText = event.data;
+
+            if (event.data.includes("UDP"))
+                li.classList.add("udp");
+            else if (event.data.includes("ONLINE") || event.data.includes("OFFLINE"))
+                li.classList.add("system");
+            else if (event.data.includes("nop"))
+                li.classList.add("error");
+
+            document.getElementById("log").appendChild(li);
+        };
+
+        ws.onclose = () => {
+            alert("Conexión cerrada");
+            location.reload();
+        };
+    }
+
+    function enviar() {
+        const msg = document.getElementById("mensaje").value;
+        if (msg.trim() === "") return;
+
+        ws.send(msg);
+        document.getElementById("mensaje").value = "";
+    }
+</script>
+
+</body>
+</html>

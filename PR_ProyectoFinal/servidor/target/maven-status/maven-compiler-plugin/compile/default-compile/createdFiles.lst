@@ -1,0 +1,12 @@
+org\example\rmi\UsuarioService.class
+org\example\rest\WebController.class
+org\example\udp\UDPServer.class
+org\example\MainServer.class
+org\example\model\Cliente.class
+org\example\rest\RestAPI.class
+org\example\rest\ClientesController.class
+org\example\rmi\UsuarioServiceImpl.class
+org\example\tcp\ClientHandler.class
+org\example\db\DBConnection.class
+org\example\tcp\TCPServer.class
+org\example\ws\ClienteWebSocket.class
